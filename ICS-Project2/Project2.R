@@ -1,0 +1,223 @@
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+library(dplyr)
+library(gridExtra)
+
+swimming_data <- read.csv("SwimmingTimes.csv")
+head(swimming_data)
+
+# Checking Number of Categories
+unique(swimming_data$Category)
+
+# Checking total number of observations in each group the data based on categories
+swimming_data %>% group_by(Category) %>%tally()
+
+# Summary of the Data
+summary(swimming_data)
+
+#Check is there any missing values in Data
+colSums(is.na(swimming_data))
+
+#same participants in more than one category
+swimming_data[swimming_data$Name %in% swimming_data[duplicated(swimming_data$Name),]$Name,]
+
+#removing duplicate participants from one category
+swimming_data  <- swimming_data  %>% filter(!(Name == "AnastasyaGorbenko" & Category == "Backstroke"))
+swimming_data  <- swimming_data  %>% filter(!(Name == "KatieShanahan" & Category == "Backstroke"))
+swimming_data  <- swimming_data  %>% filter(!(Name == "KristynaHorska" & Category == "Breaststroke"))
+swimming_data  <- swimming_data  %>% filter(!(Name == "LauraLahtinen" & Category == "Breaststroke"))
+swimming_data  <- swimming_data  %>% filter(!(Name == "MireiaBelmonteGarcia" & Category == "Butterfly"))
+swimming_data  <- swimming_data  %>% filter(!(Name == "KatinkaHosszu" & Category == "Butterfly"))
+swimming_data  <- swimming_data  %>% filter(!(Name == "MarritSteenbergen" & Category == "Freestyle"))
+
+# No of observation after removing duplicates
+swimming_data %>% group_by(Category) %>%tally()
+
+# Summary after removing duplicates
+summary(swimming_data$Time)
+
+# Frequency distribution of finishing time
+plot1 <- ggplot(swimming_data, aes(x = Time, fill = Category)) +
+  geom_histogram( col = "black", bins= 50, alpha =0.6) +
+  xlab("Time in seconds") + ylab("Frequency") +
+  ggtitle("Finishing Time Frequency Distribution")+ 
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 14 ),
+        panel.background = element_rect(fill = "White"), axis.text=element_text(size=10),
+        axis.title=element_text(size=12), legend.text = element_text(size=10),
+        legend.title = element_text(size=12))
+ggsave("histogram.pdf",plot = plot1)
+plot1
+
+#Table that lists the various statistical measures calculated on the variable sqmPrice
+Analysistable <- group_by(swimming_data, Category) %>%
+  summarise(median = sprintf("%0.3f", median(Time, na.rm = TRUE)),
+            mean = sprintf("%0.3f", mean(Time, na.rm = TRUE)),
+            sd = sd(Time, na.rm = TRUE),
+            variance = var(Time, na.rm = TRUE),
+            minimum = min(Time, na.rm = TRUE),
+            maximum = max(Time, na.rm = TRUE),
+            IQR = quantile(Time, 3/4) - quantile(Time, 1/4))
+Analysistable
+
+
+# Verifying the Assumptions
+
+## 1. Homogeneity of variance assumption
+
+#Box plot to compare finishing time in the different categories to find the homogeneity in variance
+plot2 <- ggboxplot(swimming_data, x = "Category", y = "Time", color = "black", fill = "Category",
+                   ylab = "Time in seconds", xlab = "Category") + ggtitle('Finishing Times') +
+  theme(plot.title = element_text(face = "bold",hjust = 0.5, size = 14),
+        axis.text=element_text(size=10), axis.title=element_text(size=12),
+        legend.text = element_text(size = 10),legend.title = element_text(size = 12))
+ggsave("boxlot.pdf",plot = plot2)
+plot2
+
+## 2. Normality assumption
+
+# QQ plots to verify Normality
+Backstroke <- swimming_data %>% filter(Category == "Backstroke")
+Breaststroke <- swimming_data %>% filter(Category == "Breaststroke")
+Butterfly <- swimming_data %>% filter(Category == "Butterfly")
+Freestyle <- swimming_data %>% filter(Category == "Freestyle")
+Medley <- swimming_data %>% filter(Category == "Medley")
+plot4 <- ggplot(Backstroke) + stat_qq(aes(sample = Time), color= "red")+
+  stat_qq_line(aes(sample = Time)) +  scale_x_continuous(name = "Theoretical Quantiles") +
+  scale_y_continuous(name = "Sample Quantiles") + ggtitle("a) Backstroke") +
+  theme(panel.background = element_rect(fill = "White", color = "black"), 
+        plot.title = element_text(face = "bold",hjust = 0.5, size = 12),
+        axis.text=element_text(size=10),
+        axis.title=element_text(size=12), legend.text = element_text(size = 12))
+
+
+plot5 <- ggplot(Breaststroke) + stat_qq(aes(sample = Time), color= "green")+
+  stat_qq_line(aes(sample = Time)) +  scale_x_continuous(name = "Theoretical Quantiles") +
+  scale_y_continuous(name = "Sample Quantiles") + ggtitle("b) Breaststroke") +
+  theme(panel.background = element_rect(fill = "White", color = "black"),
+        plot.title = element_text(face = "bold",hjust = 0.5, size = 12),
+        axis.text=element_text(size=10), axis.title=element_text(size=12),
+        legend.text = element_text(size = 12))
+
+plot6 <- ggplot(Butterfly) + stat_qq(aes(sample = Time), color= "darkgreen")+
+  stat_qq_line(aes(sample = Time)) +  scale_x_continuous(name = "Theoretical Quantiles") +
+  scale_y_continuous(name = "Sample Quantiles") + ggtitle("c) Butterfly") +
+  theme(panel.background = element_rect(fill = "White", color = "black"),
+        plot.title = element_text(face = "bold",hjust = 0.5, size = 12),
+        axis.text=element_text(size=10), axis.title=element_text(size=12),
+        legend.text = element_text(size = 12))
+
+plot7 <- ggplot(Freestyle) + stat_qq(aes(sample = Time), color= "steelblue")+
+  stat_qq_line(aes(sample = Time)) +  scale_x_continuous(name = "Theoretical Quantiles") +
+  scale_y_continuous(name = "Sample Quantiles") + ggtitle("d) Freestyle") +
+  theme(panel.background = element_rect(fill = "White", color = "black"),
+        plot.title = element_text(face = "bold",hjust = 0.5, size = 12),
+        axis.text=element_text(size=10), axis.title=element_text(size=12),
+        legend.text = element_text(size = 12))
+
+plot8 <- ggplot(Medley) + stat_qq(aes(sample = Time), color= "purple")+
+  stat_qq_line(aes(sample = Time)) +  scale_x_continuous(name = "Theoretical Quantiles") +
+  scale_y_continuous(name = "Sample Quantiles") + ggtitle("e) Medley") +
+  theme(panel.background = element_rect(fill = "White", color = "black"),
+        plot.title = element_text(face = "bold",hjust = 0.5, size = 12),
+        axis.text=element_text(size=10), axis.title=element_text(size=12),
+        legend.text = element_text(size = 12))
+
+final_plot1 <- grid.arrange(plot4, plot5, plot6, plot7,plot8, ncol=2, nrow = 3)
+ggsave("QQplots.pdf",plot = final_plot1)
+final_plot1
+
+
+## 3. Independence assumption
+
+#same participants in more than one category
+swimming_data[swimming_data$Name %in% swimming_data[duplicated(swimming_data$Name),]$Name,]
+
+# Task 1
+# One-way ANOVA test
+
+# Compute the analysis of variance
+one_way_anova <- aov(Time ~ Category, data = swimming_data)
+# Summary of the analysis
+summary(one_way_anova)
+
+
+#Task 2
+#Multiple T-Tests
+
+#List of pairs made of the 5 Categories
+pair_category  <- c("Backstroke_Breaststroke","Backstroke_Butterfly","Backstroke_Freestyle",
+                    "Backstroke_Medley","Breaststroke_Butterfly","Breaststroke_Freestyle",
+                    "Breaststroke_Medley","Butterfly_Freestyle",
+                    "Butterfly_Medley","Freestyle_Medley")
+
+#Filtering data for pairwise t-test
+Backstroke_Breaststroke  <- swimming_data  %>% filter(Category %in% c("Backstroke","Breaststroke")) 
+Backstroke_Butterfly  <- swimming_data  %>% filter(Category %in% c("Backstroke","Butterfly"))  
+Backstroke_Freestyle  <- swimming_data  %>% filter(Category %in% c("Backstroke","Freestyle"))  
+Backstroke_Medley  <- swimming_data  %>% filter(Category %in% c("Backstroke","Medley")) 
+Breaststroke_Butterfly  <- swimming_data  %>% filter(Category %in% c("Breaststroke","Butterfly"))  
+Breaststroke_Freestyle  <- swimming_data  %>% filter(Category %in% c("Breaststroke","Freestyle"))  
+Breaststroke_Medley  <- swimming_data  %>% filter(Category %in% c("Breaststroke","Medley"))  
+Butterfly_Freestyle  <- swimming_data  %>% filter(Category %in% c("Butterfly","Freestyle"))  
+Butterfly_Medley  <- swimming_data  %>% filter(Category %in% c("Butterfly","Medley"))  
+Freestyle_Medley  <- swimming_data  %>% filter(Category %in% c("Freestyle","Medley")) 
+
+#t-tests
+test_1  <- t.test(Time ~ Category, data = Backstroke_Breaststroke, var.equal = TRUE)
+test_2  <- t.test(Time ~ Category, data = Backstroke_Butterfly, var.equal = TRUE)
+test_3  <- t.test(Time ~ Category, data = Backstroke_Freestyle, var.equal = TRUE)
+test_4  <- t.test(Time ~ Category, data = Backstroke_Medley, var.equal = TRUE)
+test_5  <- t.test(Time ~ Category, data = Breaststroke_Butterfly, var.equal = TRUE)
+test_6  <- t.test(Time ~ Category, data = Breaststroke_Freestyle, var.equal = TRUE)
+test_7  <- t.test(Time ~ Category, data = Breaststroke_Medley, var.equal = TRUE)
+test_8  <- t.test(Time ~ Category, data = Butterfly_Freestyle, var.equal = TRUE)
+test_9  <- t.test(Time ~ Category, data = Butterfly_Medley, var.equal = TRUE)
+test_10 <- t.test(Time ~ Category, data = Freestyle_Medley, var.equal = TRUE)
+
+#p-values from the t-tests
+p_values  <- c(test_1$p.value,test_2$p.value,test_3$p.value,test_4$p.value,test_5$p.value,
+               test_6$p.value,test_7$p.value,test_8$p.value,test_9$p.value,test_10$p.value)
+p_values
+
+#Tabulating the P-value
+df1 <- data.frame(data.frame(pair_category),data.frame(p_values))
+names(df1)[1] <- "Categories pair"
+names(df1)[2] <- "p-values"
+df1["Reject Yes/No"] <- with(df1, ifelse(df1$`p-values` < 0.05, "Yes", "No"))
+df1
+
+# Multiple Tests Adjustment Methods
+
+#Adjusting methods, Bonferroni, Benjamini and hochberg
+p_values_bonferroni  <- p.adjust(p = p_values, method = "bonferroni", n = 10)
+p_values_holm  <- p.adjust(p = p_values, method = "holm", n = 10)
+
+#Tabulating the P-value before and after bonferroni correction method
+df2 <- data.frame(data.frame(pair_category),data.frame(p_values_bonferroni))
+names(df2)[1] <- "Categories pair"
+names(df2)[2] <- "Adjusted p-values"
+
+df2["Reject Yes/No"] <- with(df2, ifelse(df2$`Adjusted p-values` < 0.05, "Yes", "No"))
+
+df2
+
+#Tabulating the P-value before and after bonferroni-holm adjustment method
+df3 <- data.frame(data.frame(pair_category),data.frame(p_values_holm))
+names(df3)[1] <- "Categories pair"
+names(df3)[2] <- "Adjusted p-values"
+
+df3["Reject Yes/No"] <- with(df3, ifelse(df3$`Adjusted p-values` < 0.05, "Yes", "No"))
+
+df3
+
+
+
+
+
+
+
+
+
+
+
